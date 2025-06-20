@@ -1,6 +1,7 @@
 # Welcome to your Expo app 👋
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+
 Using EXPO GO
 
 ## Get started
@@ -16,6 +17,11 @@ Using EXPO GO
    ```bash
    npx expo start
    ```
+3.- Running in the Amazon Fire Stick Device
+ 3.1 adb connect 192.168.x.x:5555
+ 3.2 Find and run Go expo in the device's apps (like any other app)
+ 
+
 
 In the output, you'll find options to open the app in a
 
