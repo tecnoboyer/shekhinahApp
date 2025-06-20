@@ -39,12 +39,14 @@ export default function HomeScreen() {
         </ThemedView>
       </TouchableOpacity>
       
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">WORSHIP</ThemedText>
-        <ThemedText>
-          {`Drawing our hearts to Jesus`}
-        </ThemedText>
-      </ThemedView>
+      <TouchableOpacity onPress={() => router.push('/worship')} style={styles.clickableContainer}>
+        <ThemedView style={styles.stepContainer}>
+          <ThemedText type="subtitle">WORSHIP</ThemedText>
+          <ThemedText>
+            {`Drawing our hearts to Jesus`}
+          </ThemedText>
+        </ThemedView>
+      </TouchableOpacity>
       
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">WORD</ThemedText>
