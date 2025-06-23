@@ -1,5 +1,4 @@
 // witness.tsx - dedicated page for WITNESS (recording, transcription, prayer extraction)
-
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -8,33 +7,20 @@ import { API_CONFIG } from '@/config/apiConfig';
 import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
 import React, { useState } from 'react';
-import { Alert, Button, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, Button, StyleSheet, Text } from 'react-native';
+
 
 
 const OPENAI_API_KEY = API_CONFIG.OPENAI_API_KEY;
-interface WordDetail {
-  word: string;
-  start: number;
-  end: number;
-  confidence: number;
-}
-
-interface Segment {
-  text: string;
-  words?: WordDetail[];
-}
 
 interface TranscriptionResponse {
   text: string;
-  segments?: Segment[];
 }
 
-interface ProblemWord {
-  word: string;
-  start: number;
-  end: number;
-  confidence: number;
-  context_sentence: string;
+interface PrayerRequest {
+  extracted_text: string;
+  need: string;
+  prayer_request: string;
 }
 
 export default function WitnessScreen() {
@@ -42,8 +28,7 @@ export default function WitnessScreen() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fullTranscript, setFullTranscript] = useState<string>('');
-  const [problemWords, setProblemWords] = useState<ProblemWord[]>([]);
-  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [prayerRequest, setPrayerRequest] = useState<PrayerRequest | null>(null);
 
   const startRecording = async () => {
     try {
@@ -65,8 +50,7 @@ export default function WitnessScreen() {
       setRecording(newRecording);
       setIsRecording(true);
       setFullTranscript('');
-      setProblemWords([]);
-      setShowAnalysis(false);
+      setPrayerRequest(null);
     } catch (error) {
       console.error('Failed to start recording:', error);
       Alert.alert('Error', 'Failed to start recording.');
@@ -85,7 +69,7 @@ export default function WitnessScreen() {
 
       if (uri) {
         console.log('Audio file saved at:', uri);
-        await transcribeWithOpenAI(uri);
+        await transcribeAndExtractPrayer(uri);
       }
 
       setRecording(null);
@@ -96,7 +80,7 @@ export default function WitnessScreen() {
     }
   };
 
-  const transcribeWithOpenAI = async (audioUri: string) => {
+  const transcribeAndExtractPrayer = async (audioUri: string) => {
     try {
       const formData = new FormData();
 
@@ -108,7 +92,6 @@ export default function WitnessScreen() {
 
       formData.append('model', 'whisper-1');
       formData.append('response_format', 'verbose_json');
-      formData.append('timestamp_granularities', 'word');
 
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
@@ -125,39 +108,45 @@ export default function WitnessScreen() {
       }
 
       const result: TranscriptionResponse = await response.json();
-      processTranscriptionResults(result);
+      setFullTranscript(result.text);
+
+      const extraction = await extractPrayerRequest(result.text);
+      setPrayerRequest(extraction);
+
     } catch (error) {
-      console.error('Transcription error:', error);
-      Alert.alert('Error', 'Failed to transcribe audio. Please check your API key and try again.');
+      console.error('Transcription or extraction error:', error);
+      Alert.alert('Error', 'Failed to transcribe or extract prayer request.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const processTranscriptionResults = (transcript: TranscriptionResponse) => {
-    setFullTranscript(transcript.text);
-    const problemWordsList: ProblemWord[] = [];
+  const extractPrayerRequest = async (text: string): Promise<PrayerRequest> => {
+    const prompt = `Extract a prayer request from the following text. Return only this JSON structure:
+{
+  "extracted_text": "",
+  "need": "",
+  "prayer_request": ""
+}`;
 
-    if (transcript.segments && transcript.segments.length > 0) {
-      transcript.segments.forEach(segment => {
-        if (segment.words && segment.words.length > 0) {
-          segment.words.forEach(word => {
-            if (word.confidence < 0.85) {
-              problemWordsList.push({
-                word: word.word,
-                start: word.start,
-                end: word.end,
-                confidence: word.confidence,
-                context_sentence: segment.text
-              });
-            }
-          });
-        }
-      });
-    }
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4',
+        messages: [
+          { role: 'system', content: prompt },
+          { role: 'user', content: text },
+        ],
+      }),
+    });
 
-    setProblemWords(problemWordsList);
-    setShowAnalysis(true);
+    const json = await res.json();
+    const parsed = JSON.parse(json.choices[0].message.content);
+    return parsed;
   };
 
   return (
@@ -190,33 +179,17 @@ export default function WitnessScreen() {
 
       {fullTranscript && (
         <ThemedView style={styles.resultContainer}>
-          <ThemedText type="defaultSemiBold">What I heard :</ThemedText>
+          <ThemedText type="defaultSemiBold">Transcription:</ThemedText>
           <Text style={styles.transcriptText}>{fullTranscript}</Text>
         </ThemedView>
       )}
 
-      {showAnalysis && (
-        <ThemedView style={styles.analysisContainer}>
-          <ThemedText type="defaultSemiBold">Pronunciation Analysis Report</ThemedText>
-          <Text style={styles.reportHeader}>Total Problem Words Found: {problemWords.length}</Text>
-
-          {problemWords.length > 0 ? (
-            <ScrollView style={styles.problemWordsContainer}>
-              {problemWords.map((word, index) => (
-                <ThemedView key={index} style={styles.problemWordItem}>
-                  <Text style={styles.problemWordTitle}>{index + 1}. WORD: {word.word.toUpperCase()}</Text>
-                  <Text style={styles.problemWordDetail}>• Confidence: {word.confidence.toFixed(2)}/1.00</Text>
-                  <Text style={styles.problemWordDetail}>• Position: {word.start.toFixed(2)}-{word.end.toFixed(2)} seconds</Text>
-                  <Text style={styles.problemWordDetail}>• Context: "{word.context_sentence}"</Text>
-                  <Text style={styles.problemWordDetail}>• Practice: Listen and repeat 5 times at this timestamp</Text>
-                </ThemedView>
-              ))}
-            </ScrollView>
-          ) : (
-            <Text style={styles.noProblemsText}>
-              Great! No pronunciation problems detected. Your speech was clear and confident.
-            </Text>
-          )}
+      {prayerRequest && (
+        <ThemedView style={styles.resultContainer}>
+          <ThemedText type="defaultSemiBold">Extracted Prayer Request:</ThemedText>
+          <Text>• Text: {prayerRequest.extracted_text}</Text>
+          <Text>• Need: {prayerRequest.need}</Text>
+          <Text>• Prayer Request: {prayerRequest.prayer_request}</Text>
         </ThemedView>
       )}
     </ParallaxScrollView>
@@ -249,50 +222,5 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginTop: 8,
     color: '#333',
-  },
-  analysisContainer: {
-    marginTop: 15,
-    padding: 15,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  reportHeader: {
-    fontSize: 14,
-    marginTop: 5,
-    marginBottom: 10,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  problemWordsContainer: {
-    maxHeight: 300,
-  },
-  problemWordItem: {
-    marginBottom: 15,
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    borderLeftWidth: 3,
-    borderLeftColor: '#ff6b6b',
-  },
-  problemWordTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#d32f2f',
-    marginBottom: 5,
-  },
-  problemWordDetail: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 2,
-    paddingLeft: 10,
-  },
-  noProblemsText: {
-    fontSize: 16,
-    color: '#4caf50',
-    textAlign: 'center',
-    padding: 20,
-    fontStyle: 'italic',
   },
 });
