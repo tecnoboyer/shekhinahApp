@@ -43,7 +43,8 @@
     "react-native-web": "~0.20.0",
     "react-native-web-webview": "^1.0.2",
     "react-native-webview": "13.13.5",
-    "react-native-youtube-iframe": "^2.3.0"
+    "react-native-youtube-iframe": "^2.3.0",
+    "expo-audio": "~0.4.6"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
