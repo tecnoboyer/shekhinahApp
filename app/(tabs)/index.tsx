@@ -1,60 +1,33 @@
+// Full HomeScreen with all components and updated logic
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { API_CONFIG } from '@/config/apiConfig';
 import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Button, ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
-// Import your API configuration
-// import { API_CONFIG } from '@/config/apiConfig';
-import { API_CONFIG } from '@/config/apiConfig';
+import { Alert, Button, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 const OPENAI_API_KEY = API_CONFIG.OPENAI_API_KEY;
 
 
-interface WordDetail {
-  word: string;
-  start: number;
-  end: number;
-  confidence: number;
-}
 
-interface Segment {
-  text: string;
-  words?: WordDetail[];
-}
-
-interface TranscriptionResponse {
-  text: string;
-  segments?: Segment[];
-}
-
-interface ProblemWord {
-  word: string;
-  start: number;
-  end: number;
-  confidence: number;
-  context_sentence: string;
-}
 
 export default function HomeScreen() {
   const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  
-  // Results state
-  const [fullTranscript, setFullTranscript] = useState<string>('');
-  const [problemWords, setProblemWords] = useState<ProblemWord[]>([]);
-  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [fullTranscript, setFullTranscript] = useState('');
+  const [prayerRequests, setPrayerRequests] = useState<any[]>([]);
 
   const startRecording = async () => {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant microphone permission to use voice recording.');
+        Alert.alert('Permission needed', 'Please grant microphone permission.');
         return;
       }
 
@@ -70,32 +43,26 @@ export default function HomeScreen() {
       setRecording(newRecording);
       setIsRecording(true);
       setFullTranscript('');
-      setProblemWords([]);
-      setShowAnalysis(false);
-    } catch (error) {
-      console.error('Failed to start recording:', error);
+      setPrayerRequests([]);
+    } catch (err) {
+      console.error('Recording error:', err);
       Alert.alert('Error', 'Failed to start recording.');
     }
   };
 
   const stopRecording = async () => {
     if (!recording) return;
-
     try {
       setIsRecording(false);
       setIsProcessing(true);
-      
+
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
-      
-      if (uri) {
-        console.log('Audio file saved at:', uri);
-        await transcribeWithOpenAI(uri);
-      }
-      
+      if (uri) await transcribeWithOpenAI(uri);
+
       setRecording(null);
-    } catch (error) {
-      console.error('Failed to stop recording:', error);
+    } catch (err) {
+      console.error('Stop recording error:', err);
       Alert.alert('Error', 'Failed to stop recording.');
       setIsProcessing(false);
     }
@@ -103,23 +70,17 @@ export default function HomeScreen() {
 
   const transcribeWithOpenAI = async (audioUri: string) => {
     try {
-      // Create FormData for the API call
       const formData = new FormData();
-      
-      // Add the audio file
       formData.append('file', {
         uri: audioUri,
         type: 'audio/mp4',
         name: 'prayer_request.mp4',
       } as any);
-      
-      // Add other parameters matching your Python example
+
       formData.append('model', 'whisper-1');
       formData.append('response_format', 'verbose_json');
       formData.append('timestamp_granularities', 'word');
 
-      console.log('Sending audio to OpenAI Whisper...');
-      
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
         headers: {
@@ -129,62 +90,52 @@ export default function HomeScreen() {
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('OpenAI API Error:', errorText);
-        throw new Error(`OpenAI API Error: ${response.status}`);
-      }
+      const result = await response.json();
+      const transcription = result.text;
+      setFullTranscript(transcription);
 
-      const result: TranscriptionResponse = await response.json();
-      console.log('Transcription result:', result);
-      
-      // Process the results just like your Python code
-      processTranscriptionResults(result);
-      
-    } catch (error) {
-      console.error('Transcription error:', error);
-      Alert.alert('Error', 'Failed to transcribe audio. Please check your API key and try again.');
+      const prayerJSON = await extractPrayerRequests(transcription);
+      setPrayerRequests(prayerJSON.prayer_requests || []);
+
+    } catch (err) {
+      console.error('Transcription error:', err);
+      Alert.alert('Error', 'Transcription failed.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const processTranscriptionResults = (transcript: TranscriptionResponse) => {
-    // Save the full transcript (like your Python code)
-    setFullTranscript(transcript.text);
-    
-    // Initialize problem words list
-    const problemWordsList: ProblemWord[] = [];
-    
-    // Check if segments exist in the response (like your Python code)
-    if (transcript.segments && transcript.segments.length > 0) {
-      transcript.segments.forEach(segment => {
-        // Check if words exist in the segment
-        if (segment.words && segment.words.length > 0) {
-          segment.words.forEach(word => {
-            if (word.confidence < 0.85) {
-              problemWordsList.push({
-                word: word.word,
-                start: word.start,
-                end: word.end,
-                confidence: word.confidence,
-                context_sentence: segment.text
-              });
-            }
-          });
+  const extractPrayerRequests = async (text: string) => {
+    const payload = {
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a helpful assistant that extracts prayer requests from transcribed text.\nYour task is to:\n1. Identify all explicit prayer requests mentioned in the text.\n2. For each request, determine what the person needs prayer about (e.g., healing, guidance, strength).\n3. Return the results in JSON format:\n{\n  "prayer_requests": [\n    {\n      "request": "...",\n      "need": "...",\n      "details": "..."\n    }\n  ]\n}\nIf no explicit prayer requests are found, return: {"prayer_requests": []}`
+        },
+        {
+          role: 'user',
+          content: text
         }
-      });
-    } else {
-      console.log('Warning: No word-level timestamps available in the API response');
+      ]
+    };
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+    try {
+      return JSON.parse(json.choices?.[0]?.message?.content);
+    } catch (e) {
+      console.warn('Could not parse prayer request response:', json);
+      return { prayer_requests: [] };
     }
-    
-    setProblemWords(problemWordsList);
-    setShowAnalysis(true);
-    
-    // Log results like your Python code
-    console.log('Successfully processed transcription:');
-    console.log('- Full transcript length:', transcript.text.length);
-    console.log('- Problem words found:', problemWordsList.length);
   };
 
   const handleWelcomePress = () => {
@@ -229,63 +180,33 @@ export default function HomeScreen() {
 
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">WITNESS</ThemedText>
-        <ThemedText>Let's get together around Jesus. Share your prayer request below:</ThemedText>
-        
+        <ThemedText>Let's get together around Jesus</ThemedText>
+
         <Button
           title={
-            isProcessing 
-              ? "Processing with OpenAI Whisper..." 
-              : isRecording 
-                ? "Stop Recording" 
-                : "Record Prayer Request"
+            isProcessing
+              ? 'Processing...'
+              : isRecording
+                ? 'Stop Recording'
+                : 'Record Prayer Request'
           }
           onPress={isRecording ? stopRecording : startRecording}
           disabled={isProcessing}
         />
 
-        {/* Full Transcript Results */}
-        {fullTranscript && (
+        {fullTranscript !== '' && (
           <ThemedView style={styles.resultContainer}>
-            <ThemedText type="defaultSemiBold">Your Prayer Request:</ThemedText>
-            <Text style={styles.transcriptText}>{fullTranscript}</Text>
+            <ThemedText type="defaultSemiBold">Transcript:</ThemedText>
+            <Text>{fullTranscript}</Text>
           </ThemedView>
         )}
 
-        {/* Pronunciation Analysis */}
-        {showAnalysis && (
-          <ThemedView style={styles.analysisContainer}>
-            <ThemedText type="defaultSemiBold">Pronunciation Analysis Report</ThemedText>
-            <Text style={styles.reportHeader}>
-              Total Problem Words Found: {problemWords.length}
-            </Text>
-            
-            {problemWords.length > 0 ? (
-              <ScrollView style={styles.problemWordsContainer}>
-                {problemWords.map((word, index) => (
-                  <ThemedView key={index} style={styles.problemWordItem}>
-                    <Text style={styles.problemWordTitle}>
-                      {index + 1}. WORD: {word.word.toUpperCase()}
-                    </Text>
-                    <Text style={styles.problemWordDetail}>
-                      • Confidence: {word.confidence.toFixed(2)}/1.00
-                    </Text>
-                    <Text style={styles.problemWordDetail}>
-                      • Position: {word.start.toFixed(2)}-{word.end.toFixed(2)} seconds
-                    </Text>
-                    <Text style={styles.problemWordDetail}>
-                      • Context: "{word.context_sentence}"
-                    </Text>
-                    <Text style={styles.problemWordDetail}>
-                      • Practice: Listen and repeat 5 times at this timestamp
-                    </Text>
-                  </ThemedView>
-                ))}
-              </ScrollView>
-            ) : (
-              <Text style={styles.noProblemsText}>
-                Great! No pronunciation problems detected. Your speech was clear and confident.
-              </Text>
-            )}
+        {prayerRequests.length > 0 && (
+          <ThemedView style={styles.resultContainer}>
+            <ThemedText type="defaultSemiBold">Extracted Prayer Requests:</ThemedText>
+            {prayerRequests.map((req, index) => (
+              <Text key={index}>- {req.request} ({req.need}){req.details ? `\n${req.details}` : ''}</Text>
+            ))}
           </ThemedView>
         )}
       </ThemedView>
@@ -321,56 +242,5 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderLeftWidth: 4,
     borderLeftColor: '#4A90E2',
-  },
-  transcriptText: {
-    fontSize: 16,
-    lineHeight: 24,
-    marginTop: 8,
-    color: '#333',
-  },
-  analysisContainer: {
-    marginTop: 15,
-    padding: 15,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  reportHeader: {
-    fontSize: 14,
-    marginTop: 5,
-    marginBottom: 10,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  problemWordsContainer: {
-    maxHeight: 300,
-  },
-  problemWordItem: {
-    marginBottom: 15,
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    borderLeftWidth: 3,
-    borderLeftColor: '#ff6b6b',
-  },
-  problemWordTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#d32f2f',
-    marginBottom: 5,
-  },
-  problemWordDetail: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 2,
-    paddingLeft: 10,
-  },
-  noProblemsText: {
-    fontSize: 16,
-    color: '#4caf50',
-    textAlign: 'center',
-    padding: 20,
-    fontStyle: 'italic',
   },
 });
