@@ -1,96 +1,140 @@
+// Full HomeScreen with all components and updated logic
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { API_CONFIG } from '@/config/apiConfig';
 import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Button, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
+const OPENAI_API_KEY = API_CONFIG.OPENAI_API_KEY;
+
+
+
+
 export default function HomeScreen() {
   const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
-  const [results, setResults] = useState<string[]>([]);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [fullTranscript, setFullTranscript] = useState('');
+  const [prayerRequests, setPrayerRequests] = useState<any[]>([]);
 
   const startRecording = async () => {
     try {
-      // Request permissions
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant microphone permission to use voice recording.');
+        Alert.alert('Permission needed', 'Please grant microphone permission.');
         return;
       }
 
-      // Set audio mode
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
 
-      // Start recording
       const { recording: newRecording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
 
       setRecording(newRecording);
       setIsRecording(true);
-      setResults([]);
-    } catch (error) {
-      console.error('Failed to start recording:', error);
+      setFullTranscript('');
+      setPrayerRequests([]);
+    } catch (err) {
+      console.error('Recording error:', err);
       Alert.alert('Error', 'Failed to start recording.');
     }
   };
 
   const stopRecording = async () => {
     if (!recording) return;
-
     try {
       setIsRecording(false);
       setIsProcessing(true);
-      
+
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
-      
-      if (uri) {
-        // Here you would typically send the audio file to a speech-to-text service
-        // For demonstration, we'll show a placeholder result
-        setTimeout(() => {
-          setResults(['This is a placeholder for your transcribed prayer request. In a real implementation, this would be the result from a speech-to-text service like Google Cloud Speech-to-Text, AWS Transcribe, or Azure Speech Services.']);
-          setIsProcessing(false);
-        }, 2000);
-        
-        // Example of how you might send to a cloud service:
-        /*
-        const base64Audio = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        // Send to your preferred speech-to-text API
-        const response = await fetch('YOUR_SPEECH_TO_TEXT_ENDPOINT', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer YOUR_API_KEY',
-          },
-          body: JSON.stringify({
-            audio: base64Audio,
-            format: 'mp4', // or whatever format you're using
-          }),
-        });
-        
-        const result = await response.json();
-        setResults([result.transcript]);
-        */
-      }
-      
+      if (uri) await transcribeWithOpenAI(uri);
+
       setRecording(null);
-    } catch (error) {
-      console.error('Failed to stop recording:', error);
+    } catch (err) {
+      console.error('Stop recording error:', err);
       Alert.alert('Error', 'Failed to stop recording.');
       setIsProcessing(false);
+    }
+  };
+
+  const transcribeWithOpenAI = async (audioUri: string) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri: audioUri,
+        type: 'audio/mp4',
+        name: 'prayer_request.mp4',
+      } as any);
+
+      formData.append('model', 'whisper-1');
+      formData.append('response_format', 'verbose_json');
+      formData.append('timestamp_granularities', 'word');
+
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+      const transcription = result.text;
+      setFullTranscript(transcription);
+
+      const prayerJSON = await extractPrayerRequests(transcription);
+      setPrayerRequests(prayerJSON.prayer_requests || []);
+
+    } catch (err) {
+      console.error('Transcription error:', err);
+      Alert.alert('Error', 'Transcription failed.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const extractPrayerRequests = async (text: string) => {
+    const payload = {
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a helpful assistant that extracts prayer requests from transcribed text.\nYour task is to:\n1. Identify all explicit prayer requests mentioned in the text.\n2. For each request, determine what the person needs prayer about (e.g., healing, guidance, strength).\n3. Return the results in JSON format:\n{\n  "prayer_requests": [\n    {\n      "request": "...",\n      "need": "...",\n      "details": "..."\n    }\n  ]\n}\nIf no explicit prayer requests are found, return: {"prayer_requests": []}`
+        },
+        {
+          role: 'user',
+          content: text
+        }
+      ]
+    };
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+    try {
+      return JSON.parse(json.choices?.[0]?.message?.content);
+    } catch (e) {
+      console.warn('Could not parse prayer request response:', json);
+      return { prayer_requests: [] };
     }
   };
 
@@ -118,48 +162,51 @@ export default function HomeScreen() {
       <TouchableOpacity onPress={handleWelcomePress} style={styles.clickableContainer}>
         <ThemedView style={styles.stepContainer}>
           <ThemedText type="subtitle">WELCOME</ThemedText>
-          <ThemedText>
-            {`Ice-breaking`}
-          </ThemedText>
+          <ThemedText>Ice-breaking</ThemedText>
         </ThemedView>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => router.push('/worship')} style={styles.clickableContainer}>
         <ThemedView style={styles.stepContainer}>
           <ThemedText type="subtitle">WORSHIP</ThemedText>
-          <ThemedText>
-            {`Drawing our hearts to Jesus`}
-          </ThemedText>
+          <ThemedText>Drawing our hearts to Jesus</ThemedText>
         </ThemedView>
       </TouchableOpacity>
 
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">WORD</ThemedText>
-        <ThemedText>
-          {`In tune with the source`}
-        </ThemedText>
+        <ThemedText>In tune with the source</ThemedText>
       </ThemedView>
 
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">WITNESS</ThemedText>
-        <ThemedText>
-          {`Let's get together around Jesus. Share your prayer request below:`}
-        </ThemedText>
+        <ThemedText>Let's get together around Jesus</ThemedText>
+
         <Button
           title={
-            isProcessing 
-              ? "Processing..." 
-              : isRecording 
-                ? "Stop Recording" 
-                : "Record Prayer Request"
+            isProcessing
+              ? 'Processing...'
+              : isRecording
+                ? 'Stop Recording'
+                : 'Record Prayer Request'
           }
           onPress={isRecording ? stopRecording : startRecording}
           disabled={isProcessing}
         />
-        {results.length > 0 && (
-          <ThemedView style={{marginTop: 10}}>
-            <ThemedText type="defaultSemiBold">Your Prayer Request:</ThemedText>
-            <Text style={styles.prayerText}>{results[0]}</Text>
+
+        {fullTranscript !== '' && (
+          <ThemedView style={styles.resultContainer}>
+            <ThemedText type="defaultSemiBold">Transcript:</ThemedText>
+            <Text>{fullTranscript}</Text>
+          </ThemedView>
+        )}
+
+        {prayerRequests.length > 0 && (
+          <ThemedView style={styles.resultContainer}>
+            <ThemedText type="defaultSemiBold">Extracted Prayer Requests:</ThemedText>
+            {prayerRequests.map((req, index) => (
+              <Text key={index}>- {req.request} ({req.need}){req.details ? `\n${req.details}` : ''}</Text>
+            ))}
           </ThemedView>
         )}
       </ThemedView>
@@ -188,11 +235,12 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
   },
-  prayerText: {
-    fontSize: 16,
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 5,
-    marginTop: 5,
+  resultContainer: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4A90E2',
   },
 });
