@@ -18,7 +18,11 @@ Using EXPO GO
    npx expo start
    ```
 3.- Running in the Amazon Fire Stick Device
- 3.1 adb connect 192.168.x.x:5555
+ 3.1 discovering
+   adb devices
+ 3.2 Start
+   adb tcpip 5555
+ 3.2 adb connect 192.168.x.x:5555
  3.2 Find and run Go expo in the device's apps (like any other app)
  
 
