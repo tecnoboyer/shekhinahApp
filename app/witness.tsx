@@ -10,8 +10,8 @@ import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import { Alert, Button, ScrollView, StyleSheet, Text } from 'react-native';
 
-const OPENAI_API_KEY = API_CONFIG.OPENAI_API_KEY;
 
+const OPENAI_API_KEY = API_CONFIG.OPENAI_API_KEY;
 interface WordDetail {
   word: string;
   start: number;
@@ -190,7 +190,7 @@ export default function WitnessScreen() {
 
       {fullTranscript && (
         <ThemedView style={styles.resultContainer}>
-          <ThemedText type="defaultSemiBold">Your Prayer Request:</ThemedText>
+          <ThemedText type="defaultSemiBold">What I heard :</ThemedText>
           <Text style={styles.transcriptText}>{fullTranscript}</Text>
         </ThemedView>
       )}
