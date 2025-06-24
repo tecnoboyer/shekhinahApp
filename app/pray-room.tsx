@@ -1,4 +1,6 @@
-// PrayerRequestView.tsx
+
+// pray-room.tsx
+
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,13 +13,13 @@ const requestData = [
     scope: 'worldview',
     icon: 'earth',
     requests: [
-      { text: 'Pray for missionaries in closed countries.', person: 'Alice' },
-      { text: 'Global peace in conflict zones.', person: 'John' },
-      { text: 'Revival in Asia and Europe.', person: 'Maria' },
-      { text: 'Protection for persecuted Christians.', person: 'Luke' },
-      { text: 'Unity among international churches.', person: 'Sarah' },
-      { text: 'Wise leadership in the UN and NGOs.', person: 'Peter' },
-      { text: 'Healing and aid for global health crises.', person: 'Lea' }
+      { text: 'Pray for missionaries in closed countries.', person: 'Alice', scope: 'worldview' },
+      { text: 'Global peace in conflict zones.', person: 'John', scope: 'worldview' },
+      { text: 'Revival in Asia and Europe.', person: 'Maria', scope: 'worldview' },
+      { text: 'Protection for persecuted Christians.', person: 'Luke', scope: 'worldview' },
+      { text: 'Unity among international churches.', person: 'Sarah', scope: 'worldview' },
+      { text: 'Wise leadership in the UN and NGOs.', person: 'Peter', scope: 'worldview' },
+      { text: 'Healing and aid for global health crises.', person: 'Lea', scope: 'worldview' }
     ]
   },
   {
@@ -33,6 +35,7 @@ const requestData = [
       { text: 'Growth of local churches.', person: 'Oliver' },
       { text: 'Political leaders to act with wisdom.', person: 'Emma' },
       { text: 'Spiritual awakening in Ontario.', person: 'Liam' }
+
     ]
   },
   {
@@ -41,18 +44,18 @@ const requestData = [
     scope: 'innerview',
     icon: 'account-heart',
     requests: [
-      { text: 'Healing for Sister Anne.', person: 'Chloe' },
-      { text: 'Brother Paul’s job search.', person: 'Max' },
-      { text: 'Guidance for the youth retreat.', person: 'Sophia' },
-      { text: 'Strength for the pastoral team.', person: 'James' },
-      { text: 'Financial provision for the Gomez family.', person: 'Nina' },
-      { text: 'Encouragement for new believers.', person: 'Isla' },
-      { text: 'Peace for those grieving.', person: 'Zoe' }
+      { text: 'Healing for Sister Anne.', person: 'Chloe', scope: 'innerview' },
+      { text: 'Brother Paul’s job search.', person: 'Max', scope: 'innerview' },
+      { text: 'Guidance for the youth retreat.', person: 'Sophia', scope: 'innerview' },
+      { text: 'Strength for the pastoral team.', person: 'James', scope: 'innerview' },
+      { text: 'Financial provision for the Gomez family.', person: 'Nina', scope: 'innerview' },
+      { text: 'Encouragement for new believers.', person: 'Isla', scope: 'innerview' },
+      { text: 'Peace for those grieving.', person: 'Zoe', scope: 'innerview' }
     ]
   }
 ];
 
-const ViewPanel = ({ title, scripture, requests, icon }: { title: string; scripture: string; requests: { text: string; person: string; }[]; icon: string }) => {
+const ViewPanel = ({ title, scripture, requests, icon }: { title: string; scripture: string; requests: { text: string; person: string; scope: string; }[]; icon: string }) => {
   return (
     <View style={styles.panel}>
       <View style={styles.headerRow}>
@@ -149,7 +152,9 @@ const styles = StyleSheet.create({
     flex: 1
   },
   scrollArea: {
-    maxHeight: 7 * 32 // approx 7 rows
+
+    maxHeight: 7 * 32
+
   },
   requestRow: {
     flexDirection: 'row',
