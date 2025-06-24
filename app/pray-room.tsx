@@ -1,9 +1,17 @@
 
-// pray-room.tsx
 
+// pray-room.tsx
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Platform,
+  StatusBar as RNStatusBar,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const requestData = [
@@ -83,26 +91,47 @@ const ViewPanel = ({ title, scripture, requests, icon }: { title: string; script
 
 export default function PrayerRequestView() {
   const insets = useSafeAreaInsets();
+  console.log('That my OS detected :'+Platform.OS);
+    
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top }]}> 
-      {requestData.map((view, index) => (
-        <ViewPanel 
-          key={index}
-          title={view.title} 
-          scripture={view.scripture} 
-          requests={view.requests} 
-          icon={view.icon} 
-        />
-      ))}
-    </ScrollView>
+    <View style={styles.fullScreenContainer}>
+      {/* Only render StatusBar on native platforms */}
+      {Platform.OS !== 'web' && (
+        <RNStatusBar translucent backgroundColor="transparent" />
+      )}
+      <ScrollView 
+        style={[styles.container, { 
+          paddingTop: Platform.OS === 'web' ? 0 : insets.top,
+          marginTop: Platform.OS === 'web' ? 0 : -insets.top
+        }]}
+        contentContainerStyle={styles.scrollContent}
+      > 
+        {requestData.map((view, index) => (
+          <ViewPanel 
+            key={index}
+            title={view.title} 
+            scripture={view.scripture} 
+            requests={view.requests} 
+            icon={view.icon} 
+          />
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
+
 const styles = StyleSheet.create({
-  container: {
+  fullScreenContainer: {
     flex: 1,
     backgroundColor: '#F4F6F8',
-    paddingHorizontal: 10
+  },
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 10,
+    paddingBottom: 20,
   },
   panel: {
     backgroundColor: '#ffffff',

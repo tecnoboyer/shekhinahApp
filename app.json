@@ -16,7 +16,13 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "softwareKeyboardLayoutMode": "pan",
+      "windowSoftInputMode": "adjustResize",
       "edgeToEdgeEnabled": true,
+        "navigationBar": {
+        "visible": false,
+        "backgroundColor": "#00000000"
+      },
       "package": "com.anonymous.shekhinahApp"
     },
     "web": {
@@ -25,6 +31,15 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+          "expo-build-properties",
+          {
+            "android": {
+              "tv": true,
+              "compileSdkVersion": 34,
+              "targetSdkVersion": 34,
+              "buildToolsVersion": "34.0.0"
+            }
+          },
       "expo-router",
       [
         "expo-splash-screen",
@@ -40,5 +55,7 @@
     "experiments": {
       "typedRoutes": true
     }
+
+
   }
 }
