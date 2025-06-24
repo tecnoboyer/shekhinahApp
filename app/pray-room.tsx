@@ -1,60 +1,77 @@
 // PrayerRequestView.tsx
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const requestData = {
-  worldView: {
+const requestData = [
+  {
     title: 'World View',
     scripture: 'Go into all the world and preach the gospel to all creation. — Mark 16:15',
+    scope: 'worldview',
+    icon: 'earth',
     requests: [
-      'Pray for missionaries in closed countries.',
-      'Global peace in conflict zones.',
-      'Revival in Asia and Europe.',
-      'Protection for persecuted Christians.',
-      'Unity among international churches.',
-      'Wise leadership in the UN and NGOs.',
-      'Healing and aid for global health crises.'
+      { text: 'Pray for missionaries in closed countries.', person: 'Alice' },
+      { text: 'Global peace in conflict zones.', person: 'John' },
+      { text: 'Revival in Asia and Europe.', person: 'Maria' },
+      { text: 'Protection for persecuted Christians.', person: 'Luke' },
+      { text: 'Unity among international churches.', person: 'Sarah' },
+      { text: 'Wise leadership in the UN and NGOs.', person: 'Peter' },
+      { text: 'Healing and aid for global health crises.', person: 'Lea' }
     ]
   },
-  localView: {
+  {
     title: 'Local View',
     scripture: 'Seek the peace and prosperity of the city... Pray to the Lord for it. — Jeremiah 29:7',
+    scope: 'localview',
+    icon: 'map-marker-radius',
     requests: [
-      'Peace in Canadian cities.',
-      'Support for new immigrants.',
-      'Opportunities for youth ministries.',
-      'Protection over first responders.',
-      'Growth of local churches.',
-      'Political leaders to act with wisdom.',
-      'Spiritual awakening in Ontario.'
+      { text: 'Peace in Canadian cities.', person: 'Noah' },
+      { text: 'Support for new immigrants.', person: 'Ella' },
+      { text: 'Opportunities for youth ministries.', person: 'Jake' },
+      { text: 'Protection over first responders.', person: 'Maya' },
+      { text: 'Growth of local churches.', person: 'Oliver' },
+      { text: 'Political leaders to act with wisdom.', person: 'Emma' },
+      { text: 'Spiritual awakening in Ontario.', person: 'Liam' }
     ]
   },
-  innerView: {
+  {
     title: 'Inner View',
     scripture: 'Carry each other’s burdens. — Galatians 6:2',
+    scope: 'innerview',
+    icon: 'account-heart',
     requests: [
-      'Healing for Sister Anne.',
-      'Brother Paul’s job search.',
-      'Guidance for the youth retreat.',
-      'Strength for the pastoral team.',
-      'Financial provision for the Gomez family.',
-      'Encouragement for new believers.',
-      'Peace for those grieving.'
+      { text: 'Healing for Sister Anne.', person: 'Chloe' },
+      { text: 'Brother Paul’s job search.', person: 'Max' },
+      { text: 'Guidance for the youth retreat.', person: 'Sophia' },
+      { text: 'Strength for the pastoral team.', person: 'James' },
+      { text: 'Financial provision for the Gomez family.', person: 'Nina' },
+      { text: 'Encouragement for new believers.', person: 'Isla' },
+      { text: 'Peace for those grieving.', person: 'Zoe' }
     ]
   }
-};
+];
 
-const ViewPanel = ({ title, scripture, requests }: { title: string; scripture: string; requests: string[] }) => {
+const ViewPanel = ({ title, scripture, requests, icon }: { title: string; scripture: string; requests: { text: string; person: string; }[]; icon: string }) => {
   return (
     <View style={styles.panel}>
-      <Text style={styles.title}>{title}</Text>
+      <View style={styles.headerRow}>
+        <MaterialCommunityIcons name={icon} size={24} color="#333" style={styles.icon} />
+        <Text style={styles.title}>{title}</Text>
+      </View>
       <View style={styles.scriptureBox}>
         <Text style={styles.scripture}>{scripture}</Text>
       </View>
+      <View style={styles.tableHeader}>
+        <Text style={styles.tableHeaderText}>Request</Text>
+        <Text style={styles.tableHeaderText}>Requested By</Text>
+      </View>
       <ScrollView style={styles.scrollArea}>
         {requests.map((req, idx) => (
-          <Text key={idx} style={styles.request}>• {req}</Text>
+          <View key={idx} style={styles.requestRow}>
+            <Text style={styles.requestText}>{req.text}</Text>
+            <Text style={styles.personText}>{req.person}</Text>
+          </View>
         ))}
       </ScrollView>
     </View>
@@ -64,22 +81,16 @@ const ViewPanel = ({ title, scripture, requests }: { title: string; scripture: s
 export default function PrayerRequestView() {
   const insets = useSafeAreaInsets();
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top }]}>
-      <ViewPanel 
-        title={requestData.worldView.title} 
-        scripture={requestData.worldView.scripture} 
-        requests={requestData.worldView.requests} 
-      />
-      <ViewPanel 
-        title={requestData.localView.title} 
-        scripture={requestData.localView.scripture} 
-        requests={requestData.localView.requests} 
-      />
-      <ViewPanel 
-        title={requestData.innerView.title} 
-        scripture={requestData.innerView.scripture} 
-        requests={requestData.innerView.requests} 
-      />
+    <ScrollView style={[styles.container, { paddingTop: insets.top }]}> 
+      {requestData.map((view, index) => (
+        <ViewPanel 
+          key={index}
+          title={view.title} 
+          scripture={view.scripture} 
+          requests={view.requests} 
+          icon={view.icon} 
+        />
+      ))}
     </ScrollView>
   );
 }
@@ -100,10 +111,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  icon: {
+    marginRight: 8
+  },
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 8,
     color: '#333'
   },
   scriptureBox: {
@@ -117,12 +135,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#555'
   },
-  scrollArea: {
-    maxHeight: 7 * 28 // approx 7 lines
+  tableHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc'
   },
-  request: {
-    fontSize: 18,
-    marginBottom: 6,
+  tableHeaderText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#444',
+    flex: 1
+  },
+  scrollArea: {
+    maxHeight: 7 * 32 // approx 7 rows
+  },
+  requestRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee'
+  },
+  requestText: {
+    fontSize: 16,
+    flex: 1,
     color: '#222'
+  },
+  personText: {
+    fontSize: 16,
+    flex: 1,
+    textAlign: 'right',
+    color: '#666'
   }
 });
