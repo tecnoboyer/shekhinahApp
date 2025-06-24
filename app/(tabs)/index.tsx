@@ -48,6 +48,13 @@ export default function HomeScreen() {
           <ThemedText>Let's get together around Jesus</ThemedText>
         </ThemedView>
       </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => router.push('/pray-room')} style={styles.clickableContainer}>
+        <ThemedView style={styles.stepContainer}>
+          <ThemedText type="subtitle">PRAY ROOM</ThemedText>
+          <ThemedText>Come and seek God's heart together</ThemedText>
+        </ThemedView>
+      </TouchableOpacity>
     </ParallaxScrollView>
   );
 }
