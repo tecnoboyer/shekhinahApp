@@ -1,4 +1,6 @@
+
 // pray-room.tsx
+
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -26,13 +28,14 @@ const requestData = [
     scope: 'localview',
     icon: 'map-marker-radius',
     requests: [
-      { text: 'Peace in Canadian cities.', person: 'Noah', scope: 'localview' },
-      { text: 'Support for new immigrants.', person: 'Ella', scope: 'localview' },
-      { text: 'Opportunities for youth ministries.', person: 'Jake', scope: 'localview' },
-      { text: 'Protection over first responders.', person: 'Maya', scope: 'localview' },
-      { text: 'Growth of local churches.', person: 'Oliver', scope: 'localview' },
-      { text: 'Political leaders to act with wisdom.', person: 'Emma', scope: 'localview' },
-      { text: 'Spiritual awakening in Ontario.', person: 'Liam', scope: 'localview' }
+      { text: 'Peace in Canadian cities.', person: 'Noah' },
+      { text: 'Support for new immigrants.', person: 'Ella' },
+      { text: 'Opportunities for youth ministries.', person: 'Jake' },
+      { text: 'Protection over first responders.', person: 'Maya' },
+      { text: 'Growth of local churches.', person: 'Oliver' },
+      { text: 'Political leaders to act with wisdom.', person: 'Emma' },
+      { text: 'Spiritual awakening in Ontario.', person: 'Liam' }
+
     ]
   },
   {
@@ -149,7 +152,9 @@ const styles = StyleSheet.create({
     flex: 1
   },
   scrollArea: {
+
     maxHeight: 7 * 32
+
   },
   requestRow: {
     flexDirection: 'row',
